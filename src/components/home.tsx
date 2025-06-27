@@ -11,6 +11,8 @@ import {
 } from "./ui/card";
 import { PlusCircle, AlertTriangle, Clock, MapPin } from "lucide-react";
 import { supabase, Report } from "@/lib/supabase";
+import AuthButton from "./AuthButton";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DisplayReport {
   id: string;
@@ -24,6 +26,7 @@ interface DisplayReport {
 }
 
 const Home = () => {
+  const { user } = useAuth();
   const [reports, setReports] = React.useState<DisplayReport[]>([]);
   const [loading, setLoading] = React.useState(true);
 
@@ -124,13 +127,30 @@ const Home = () => {
             <h1 className="text-3xl font-bold text-gray-900">
               Electrical Infrastructure Issue Reporting
             </h1>
-            <Button className="bg-primary hover:bg-primary/90">
-              <Link to="/report/new" className="flex items-center">
-                <PlusCircle className="mr-2 h-5 w-5" />
-                New Report
-              </Link>
-            </Button>
+            <div className="flex items-center gap-4">
+              {user ? (
+                <Button className="bg-primary hover:bg-primary/90">
+                  <Link to="/report/new" className="flex items-center">
+                    <PlusCircle className="mr-2 h-5 w-5" />
+                    New Report
+                  </Link>
+                </Button>
+              ) : (
+                <Button className="bg-primary hover:bg-primary/90">
+                  <Link to="/login" className="flex items-center">
+                    <PlusCircle className="mr-2 h-5 w-5" />
+                    Sign In to Report
+                  </Link>
+                </Button>
+              )}
+              <AuthButton />
+            </div>
           </div>
+          {user && (
+            <div className="mt-2 text-sm text-gray-600">
+              Welcome back, {user.user_metadata?.full_name || user.email}!
+            </div>
+          )}
         </div>
       </header>
 
@@ -155,15 +175,27 @@ const Home = () => {
               </p>
             </CardContent>
             <CardFooter>
-              <Button className="w-full sm:w-auto">
-                <Link
-                  to="/report/new"
-                  className="flex items-center justify-center"
-                >
-                  <PlusCircle className="mr-2 h-5 w-5" />
-                  Create New Report
-                </Link>
-              </Button>
+              {user ? (
+                <Button className="w-full sm:w-auto">
+                  <Link
+                    to="/report/new"
+                    className="flex items-center justify-center"
+                  >
+                    <PlusCircle className="mr-2 h-5 w-5" />
+                    Create New Report
+                  </Link>
+                </Button>
+              ) : (
+                <Button className="w-full sm:w-auto">
+                  <Link
+                    to="/login"
+                    className="flex items-center justify-center"
+                  >
+                    <PlusCircle className="mr-2 h-5 w-5" />
+                    Sign In to Create Report
+                  </Link>
+                </Button>
+              )}
             </CardFooter>
           </Card>
         </section>
@@ -245,14 +277,25 @@ const Home = () => {
                   No reports yet
                 </h3>
                 <p className="text-gray-500 mb-6">
-                  Create your first report to get started
+                  {user
+                    ? "Create your first report to get started"
+                    : "Sign in to create your first report"}
                 </p>
-                <Button>
-                  <Link to="/report/new" className="flex items-center">
-                    <PlusCircle className="mr-2 h-5 w-5" />
-                    Create New Report
-                  </Link>
-                </Button>
+                {user ? (
+                  <Button>
+                    <Link to="/report/new" className="flex items-center">
+                      <PlusCircle className="mr-2 h-5 w-5" />
+                      Create New Report
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button>
+                    <Link to="/login" className="flex items-center">
+                      <PlusCircle className="mr-2 h-5 w-5" />
+                      Sign In to Create Report
+                    </Link>
+                  </Button>
+                )}
               </div>
             </Card>
           )}
