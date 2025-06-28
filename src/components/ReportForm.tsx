@@ -117,27 +117,40 @@ const ReportForm = ({
     reportId: string,
   ) => {
     try {
-      // This would typically require Twitter API integration
-      // For now, we'll simulate the posting
       const tweet = `🚨 Electrical Infrastructure Issue Reported\n\nTitle: ${reportData.title}\nSeverity: ${reportData.severity.toUpperCase()}\nLocation: ${reportData.location.address}\n\nReport ID: ${reportId}\n\n#ElectricalSafety #InfrastructureReport`;
 
-      // In a real implementation, you would use Twitter API v2:
-      // const response = await fetch('https://api.twitter.com/2/tweets', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Authorization': `Bearer ${session?.provider_token}`,
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     text: tweet,
-      //   }),
-      // });
+      // Get the provider token from the session
+      const providerToken = session?.provider_token;
 
-      console.log("Would post to Twitter:", tweet);
-      // For demo purposes, we'll just show a success message
+      if (!providerToken) {
+        throw new Error("No Twitter access token available");
+      }
+
+      // Make the actual API call to Twitter API v2
+      const response = await fetch("https://api.twitter.com/2/tweets", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${providerToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: tweet,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          `Twitter API error: ${errorData.detail || response.statusText}`,
+        );
+      }
+
+      const result = await response.json();
+      console.log("Successfully posted to Twitter:", result);
       return true;
     } catch (error) {
       console.error("Error posting to Twitter:", error);
+      // Don't throw the error to prevent blocking the main report submission
       return false;
     }
   };
