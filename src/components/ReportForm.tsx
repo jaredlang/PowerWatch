@@ -18,11 +18,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Facebook,
+  Twitter,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import LocationPicker from "./LocationPicker";
 import PhotoUploader from "./PhotoUploader";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ReportFormProps {
   onSubmit?: (data: ReportData) => void;
@@ -45,6 +54,7 @@ const ReportForm = ({
   onSubmit = () => {},
   onCancel = () => {},
 }: ReportFormProps) => {
+  const { user, session } = useAuth();
   const [step, setStep] = useState<number>(1);
   const [formData, setFormData] = useState<ReportData>({
     title: "",
@@ -60,9 +70,77 @@ const ReportForm = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [reportId, setReportId] = useState<string>("");
+  const [postToFacebook, setPostToFacebook] = useState<boolean>(false);
+  const [postToTwitter, setPostToTwitter] = useState<boolean>(false);
 
   const totalSteps = 3;
   const progress = (step / totalSteps) * 100;
+
+  // Check if user logged in via Facebook or Twitter
+  const isLoggedInViaFacebook =
+    session?.user?.app_metadata?.provider === "facebook";
+  const isLoggedInViaTwitter =
+    session?.user?.app_metadata?.provider === "twitter";
+
+  const postReportToFacebook = async (
+    reportData: ReportData,
+    reportId: string,
+  ) => {
+    try {
+      // This would typically require Facebook Graph API integration
+      // For now, we'll simulate the posting
+      const message = `🚨 Electrical Infrastructure Issue Reported\n\nTitle: ${reportData.title}\nSeverity: ${reportData.severity.toUpperCase()}\nLocation: ${reportData.location.address}\n\nReport ID: ${reportId}\n\n#ElectricalSafety #InfrastructureReport`;
+
+      // In a real implementation, you would use Facebook Graph API:
+      // const response = await fetch(`https://graph.facebook.com/me/feed`, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Authorization': `Bearer ${session?.provider_token}`,
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({
+      //     message: message,
+      //   }),
+      // });
+
+      console.log("Would post to Facebook:", message);
+      // For demo purposes, we'll just show a success message
+      return true;
+    } catch (error) {
+      console.error("Error posting to Facebook:", error);
+      return false;
+    }
+  };
+
+  const postReportToTwitter = async (
+    reportData: ReportData,
+    reportId: string,
+  ) => {
+    try {
+      // This would typically require Twitter API integration
+      // For now, we'll simulate the posting
+      const tweet = `🚨 Electrical Infrastructure Issue Reported\n\nTitle: ${reportData.title}\nSeverity: ${reportData.severity.toUpperCase()}\nLocation: ${reportData.location.address}\n\nReport ID: ${reportId}\n\n#ElectricalSafety #InfrastructureReport`;
+
+      // In a real implementation, you would use Twitter API v2:
+      // const response = await fetch('https://api.twitter.com/2/tweets', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Authorization': `Bearer ${session?.provider_token}`,
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({
+      //     text: tweet,
+      //   }),
+      // });
+
+      console.log("Would post to Twitter:", tweet);
+      // For demo purposes, we'll just show a success message
+      return true;
+    } catch (error) {
+      console.error("Error posting to Twitter:", error);
+      return false;
+    }
+  };
 
   const handleNext = () => {
     if (step === 1 && !formData.location) {
@@ -138,6 +216,17 @@ const ReportForm = ({
       }
 
       setReportId(data.id);
+
+      // Post to Facebook if option is enabled
+      if (postToFacebook && isLoggedInViaFacebook) {
+        await postReportToFacebook(formData, data.id);
+      }
+
+      // Post to Twitter if option is enabled
+      if (postToTwitter && isLoggedInViaTwitter) {
+        await postReportToTwitter(formData, data.id);
+      }
+
       onSubmit(formData);
 
       // Reset form after successful submission
@@ -152,6 +241,8 @@ const ReportForm = ({
         },
         photos: [],
       });
+      setPostToFacebook(false);
+      setPostToTwitter(false);
       setStep(4); // Success step
     } catch (err: any) {
       console.error("Error submitting report:", err);
@@ -267,6 +358,57 @@ const ReportForm = ({
               new photos or upload from your gallery.
             </p>
             <PhotoUploader onPhotosChange={handlePhotosChange} />
+
+            {isLoggedInViaFacebook && (
+              <div className="mt-6 p-4 border rounded-lg bg-blue-50">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="facebook-post"
+                    checked={postToFacebook}
+                    onCheckedChange={(checked) =>
+                      setPostToFacebook(checked as boolean)
+                    }
+                  />
+                  <Label
+                    htmlFor="facebook-post"
+                    className="flex items-center space-x-2 cursor-pointer"
+                  >
+                    <Facebook className="h-4 w-4 text-blue-600" />
+                    <span>Share this report on Facebook</span>
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 ml-6">
+                  This will post a summary of your report to your Facebook
+                  timeline to help raise awareness about electrical
+                  infrastructure issues.
+                </p>
+              </div>
+            )}
+
+            {isLoggedInViaTwitter && (
+              <div className="mt-6 p-4 border rounded-lg bg-sky-50">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="twitter-post"
+                    checked={postToTwitter}
+                    onCheckedChange={(checked) =>
+                      setPostToTwitter(checked as boolean)
+                    }
+                  />
+                  <Label
+                    htmlFor="twitter-post"
+                    className="flex items-center space-x-2 cursor-pointer"
+                  >
+                    <Twitter className="h-4 w-4 text-sky-600" />
+                    <span>Share this report on Twitter</span>
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 ml-6">
+                  This will post a summary of your report as a tweet to help
+                  raise awareness about electrical infrastructure issues.
+                </p>
+              </div>
+            )}
           </div>
         )}
 

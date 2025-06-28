@@ -99,9 +99,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signInWithLinkedIn = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "linkedin_oidc",
-      options: {
-        redirectTo: "https://hvkgqzazsonqixurxxhi.supabase.co/auth/v1/callback",
-      },
     });
     if (error) {
       console.error("Error signing in with LinkedIn:", error.message);
