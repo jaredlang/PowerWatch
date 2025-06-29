@@ -121,32 +121,41 @@ const ReportForm = ({
 
       // Get the provider token from the session
       const providerToken = session?.provider_token;
+      const providerRefreshToken = session?.provider_refresh_token;
 
-      if (!providerToken) {
-        throw new Error("No Twitter access token available");
-      }
-
-      // Make the actual API call to Twitter API v2
-      const response = await fetch("https://api.twitter.com/2/tweets", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${providerToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text: tweet,
-        }),
+      console.log("Twitter auth debug:", {
+        hasProviderToken: !!providerToken,
+        hasRefreshToken: !!providerRefreshToken,
+        provider: session?.user?.app_metadata?.provider,
+        tokenLength: providerToken?.length,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!providerToken) {
         throw new Error(
-          `Twitter API error: ${errorData.detail || response.statusText}`,
+          "No Twitter access token available. Please log out and log back in with Twitter.",
         );
       }
 
-      const result = await response.json();
-      console.log("Successfully posted to Twitter:", result);
+      // Use Supabase Edge Function to post to Twitter (avoids CORS issues)
+      const { data, error } = await supabase.functions.invoke(
+        "supabase-functions-post-to-twitter",
+        {
+          body: {
+            tweet,
+            providerToken,
+          },
+        },
+      );
+
+      if (error) {
+        throw new Error(`Edge function error: ${error.message}`);
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || "Failed to post to Twitter");
+      }
+
+      console.log("Successfully posted to Twitter:", data.data);
       return true;
     } catch (error) {
       console.error("Error posting to Twitter:", error);

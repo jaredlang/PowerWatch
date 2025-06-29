@@ -88,6 +88,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       provider: "twitter",
       options: {
         redirectTo: `${window.location.origin}/`,
+        scopes: "tweet.read tweet.write users.read offline.access",
+        queryParams: {
+          access_type: "offline",
+        },
       },
     });
     if (error) {
