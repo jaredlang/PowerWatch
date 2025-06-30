@@ -36,6 +36,8 @@ import { useAuth } from "@/contexts/AuthContext";
 interface ReportFormProps {
   onSubmit?: (data: ReportData) => void;
   onCancel?: () => void;
+  initialData?: Partial<ReportData & { id: string }>;
+  mode?: "create" | "edit";
 }
 
 export interface ReportData {
@@ -53,14 +55,16 @@ export interface ReportData {
 const ReportForm = ({
   onSubmit = () => {},
   onCancel = () => {},
+  initialData,
+  mode = "create",
 }: ReportFormProps) => {
   const { user, session } = useAuth();
   const [step, setStep] = useState<number>(1);
   const [formData, setFormData] = useState<ReportData>({
-    title: "",
-    description: "",
-    severity: "medium",
-    location: {
+    title: initialData?.title || "",
+    description: initialData?.description || "",
+    severity: initialData?.severity || "medium",
+    location: initialData?.location || {
       latitude: 40.7128,
       longitude: -74.006,
       address: "New York, NY, USA",
@@ -217,24 +221,57 @@ const ReportForm = ({
       const imageUrls =
         formData.photos.length > 0 ? await uploadPhotos(formData.photos) : [];
 
-      // Insert report into database
-      const { data, error } = await supabase
-        .from("reports")
-        .insert({
+      let data;
+      if (mode === "edit" && initialData?.id) {
+        // Update existing report
+        const updateData: any = {
           title: formData.title,
           description: formData.description,
           severity: formData.severity,
           location_latitude: formData.location.latitude,
           location_longitude: formData.location.longitude,
           location_address: formData.location.address,
-          image_urls: imageUrls,
-          status: "pending",
-        })
-        .select()
-        .single();
+          updated_at: new Date().toISOString(),
+        };
 
-      if (error) {
-        throw error;
+        // Only update image_urls if new photos were uploaded
+        if (imageUrls.length > 0) {
+          updateData.image_urls = imageUrls;
+        }
+
+        const { data: updateResult, error } = await supabase
+          .from("reports")
+          .update(updateData)
+          .eq("id", initialData.id)
+          .select()
+          .single();
+
+        if (error) {
+          throw error;
+        }
+        data = updateResult;
+      } else {
+        // Insert new report
+        const { data: insertResult, error } = await supabase
+          .from("reports")
+          .insert({
+            title: formData.title,
+            description: formData.description,
+            severity: formData.severity,
+            location_latitude: formData.location.latitude,
+            location_longitude: formData.location.longitude,
+            location_address: formData.location.address,
+            image_urls: imageUrls,
+            status: "pending",
+            user_id: user?.id,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          throw error;
+        }
+        data = insertResult;
       }
 
       setReportId(data.id);
@@ -293,7 +330,8 @@ const ReportForm = ({
           {step === 1 && "Select Location"}
           {step === 2 && "Describe the Issue"}
           {step === 3 && "Add Photos"}
-          {step === 4 && "Report Submitted"}
+          {step === 4 &&
+            (mode === "edit" ? "Report Updated" : "Report Submitted")}
         </CardTitle>
         <Progress value={progress} className="h-2 mt-2" />
       </CardHeader>
@@ -441,8 +479,8 @@ const ReportForm = ({
             </div>
             <h3 className="text-xl font-semibold">Thank You!</h3>
             <p className="text-muted-foreground">
-              Your report has been submitted successfully. The reference number
-              for your report is:
+              Your report has been {mode === "edit" ? "updated" : "submitted"}{" "}
+              successfully. The reference number for your report is:
             </p>
             <p className="text-lg font-mono bg-muted p-2 rounded">
               {reportId || `REP-${Date.now().toString().slice(-8)}`}
@@ -484,7 +522,7 @@ const ReportForm = ({
           </>
         ) : (
           <Button className="w-full" onClick={onCancel}>
-            Create Another Report
+            {mode === "edit" ? "Back to Report" : "Create Another Report"}
           </Button>
         )}
       </CardFooter>

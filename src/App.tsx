@@ -3,6 +3,7 @@ import { useRoutes, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./components/home";
 import NewReportPage from "./components/NewReportPage";
 import ReportDetailsPage from "./components/ReportDetailsPage";
+import EditReportPage from "./components/EditReportPage";
 import LoginPage from "./components/LoginPage";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import routes from "tempo-routes";
@@ -53,6 +54,14 @@ const AppRoutes = () => {
           }
         />
         <Route path="/report/:id" element={<ReportDetailsPage />} />
+        <Route
+          path="/report/:id/edit"
+          element={
+            <ProtectedRoute>
+              <EditReportPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
       {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
     </>

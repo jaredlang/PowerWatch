@@ -8,15 +8,34 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { ArrowLeft, MapPin, Clock, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  MapPin,
+  Clock,
+  AlertTriangle,
+  Edit,
+  Settings,
+} from "lucide-react";
 import { supabase, Report } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { useToast } from "./ui/use-toast";
 
 const ReportDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [report, setReport] = React.useState<Report | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = React.useState(false);
 
   React.useEffect(() => {
     const fetchReport = async () => {
@@ -70,9 +89,9 @@ const ReportDetailsPage = () => {
     switch (status) {
       case "pending":
         return "bg-orange-100 text-orange-800";
-      case "in-progress":
+      case "under-repair":
         return "bg-blue-100 text-blue-800";
-      case "resolved":
+      case "repaired":
         return "bg-green-100 text-green-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -88,6 +107,59 @@ const ReportDetailsPage = () => {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!report || !user || report.user_id !== user.id) return;
+
+    setUpdatingStatus(true);
+    try {
+      const { error } = await supabase
+        .from("reports")
+        .update({ status: newStatus })
+        .eq("id", report.id);
+
+      if (error) {
+        console.error("Error updating status:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update report status. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setReport({ ...report, status: newStatus });
+      toast({
+        title: "Status Updated",
+        description: `Report status changed to ${newStatus
+          .split("-")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ")}.`,
+      });
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update report status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const getStatusDisplayName = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "Pending";
+      case "under-repair":
+        return "Under Repair";
+      case "repaired":
+        return "Repaired";
+      default:
+        return status;
+    }
   };
 
   if (loading) {
@@ -191,21 +263,30 @@ const ReportDetailsPage = () => {
                   Reported on {formatDate(report.created_at || "")}
                 </CardDescription>
               </div>
-              <div className="flex gap-2">
-                <div
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${getSeverityColor(report.severity)}`}
-                >
-                  {report.severity.charAt(0).toUpperCase() +
-                    report.severity.slice(1)}{" "}
-                  Priority
-                </div>
-                <div
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(report.status)}`}
-                >
-                  {report.status
-                    .split("-")
-                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(" ")}
+              <div className="flex gap-2 items-center">
+                {user && report.user_id === user.id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/report/${report.id}/edit`)}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
+                <div className="flex gap-2">
+                  <div
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${getSeverityColor(report.severity)}`}
+                  >
+                    {report.severity.charAt(0).toUpperCase() +
+                      report.severity.slice(1)}{" "}
+                    Priority
+                  </div>
+                  <div
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(report.status)}`}
+                  >
+                    {getStatusDisplayName(report.status)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -229,6 +310,42 @@ const ReportDetailsPage = () => {
                 {report.description}
               </p>
             </div>
+
+            {/* Status Update Section - Only visible to report owner */}
+            {user && report.user_id === user.id && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-3 flex items-center">
+                  <Settings className="h-5 w-5 mr-2" />
+                  Update Status
+                </h3>
+                <div className="flex items-center space-x-4">
+                  <label className="text-sm font-medium text-gray-700">
+                    Current Status:
+                  </label>
+                  <Select
+                    value={report.status}
+                    onValueChange={handleStatusUpdate}
+                    disabled={updatingStatus}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="under-repair">Under Repair</SelectItem>
+                      <SelectItem value="repaired">Repaired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {updatingStatus && (
+                    <span className="text-sm text-gray-500">Updating...</span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  You can update the status of your report to keep others
+                  informed of the progress.
+                </p>
+              </div>
+            )}
 
             {/* Location and Timestamp */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

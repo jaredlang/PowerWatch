@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS reports (
   location_latitude DECIMAL(10, 8) NOT NULL,
   location_longitude DECIMAL(11, 8) NOT NULL,
   location_address TEXT NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in-progress', 'resolved')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'under-repair', 'repaired')),
   image_urls TEXT[],
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
