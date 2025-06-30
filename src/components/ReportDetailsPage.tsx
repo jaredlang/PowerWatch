@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Edit,
   Settings,
+  Trash2,
 } from "lucide-react";
 import { supabase, Report } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +27,17 @@ import {
   SelectValue,
 } from "./ui/select";
 import { useToast } from "./ui/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./ui/alert-dialog";
 
 const ReportDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +48,7 @@ const ReportDetailsPage = () => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
 
   React.useEffect(() => {
     const fetchReport = async () => {
@@ -162,6 +175,45 @@ const ReportDetailsPage = () => {
     }
   };
 
+  const handleDeleteReport = async () => {
+    if (!report || !user || report.user_id !== user.id) return;
+
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("reports")
+        .delete()
+        .eq("id", report.id);
+
+      if (error) {
+        console.error("Error deleting report:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete report. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Report Deleted",
+        description: "Your report has been successfully deleted.",
+      });
+
+      // Navigate back to home after successful deletion
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -265,14 +317,48 @@ const ReportDetailsPage = () => {
               </div>
               <div className="flex gap-2 items-center">
                 {user && report.user_id === user.id && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/report/${report.id}/edit`)}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/report/${report.id}/edit`)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          disabled={deleting}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          {deleting ? "Deleting..." : "Delete"}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Report</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this report? This
+                            action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteReport}
+                            className="bg-red-600 hover:bg-red-700"
+                            disabled={deleting}
+                          >
+                            {deleting ? "Deleting..." : "Delete Report"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 )}
                 <div className="flex gap-2">
                   <div
